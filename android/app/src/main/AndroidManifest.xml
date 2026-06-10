@@ -3,9 +3,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
-        android:label="facturacuellosuazo_app"
+        android:label="AutoNCF"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
 
         <activity
             android:name=".MainActivity"
