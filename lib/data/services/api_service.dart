@@ -1,62 +1,99 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants.dart';
 import '../../data/models/factura_model.dart';
 
 class ApiService {
-  /// 📥 GET: Obtiene el historial completo de facturas desde Google Sheets
-  Future<List<FacturaModel>> obtenerFacturas() async {
+  final _supabase = Supabase.instance.client;
+
+  /// 🌍 ENRUTADOR GLOBAL PÚBLICO
+  /// Con esto, no importa la IP, ni la red, ni el país. Todos los celulares apuntan a Render en producción.
+  static String get _backendUrl {
+    if (kIsWeb) {
+      // En la web de desarrollo apunta local, pero para tus usuarios finales de la app...
+      return 'http://localhost:3000/api/procesar-factura';
+    }
+
+    // 🚀 UNIFICADO PARA CELULARES: Apunta directo a tu URL pública en la nube de Render
+    return 'https://autoncf-backend.onrender.com/api/procesar-factura';
+  }
+
+  /// 📥 Obtiene el historial de facturas directo desde Supabase PostgreSQL filtrado por empresa
+  Future<List<FacturaModel>> obtenerFacturas(String empresaId) async {
     try {
-      final response = await http.get(Uri.parse(AppConstants.apiEndpoint));
+      final response = await _supabase
+          .from('facturas')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .order('fecha', ascending: false);
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-
-        if (jsonResponse['success'] == true && jsonResponse['facturas'] != null) {
-          final List<dynamic> listaFacturasJson = jsonResponse['facturas'];
-          return listaFacturasJson.map((json) => FacturaModel.fromJson(json)).toList();
-        }
-      }
-      return [];
+      final List<dynamic> listaData = response as List<dynamic>;
+      return listaData.map((json) => FacturaModel.fromJson(json)).toList();
     } catch (e) {
-      print("❌ Error en ApiService GET: $e");
+      print("❌ Error en ApiService de Supabase: $e");
       return [];
     }
   }
 
-  /// 📤 POST: Envía la imagen física en Base64 hacia el Google Apps Script
-  Future<Map<String, dynamic>> subirFactura(File imagen) async {
+  /// 🚀 MULTIPART POST: Envía los bytes de la factura física directo al backend dinámico
+  Future<bool> enviarFacturaAlBackend({
+    required XFile imagen,
+    required String empresaId,
+    required String tipoFormato,
+    required String creadoPor,
+  }) async {
     try {
-      List<int> imageBytes = await imagen.readAsBytes();
-      String base64Image = base64Encode(imageBytes);
+      final String urlDestino = _backendUrl;
+      print("📡 Conectando de forma global con el motor de AutoNCF en: $urlDestino");
 
-      String mimeType = imagen.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+      final url = Uri.parse(urlDestino);
+      final request = http.MultipartRequest('POST', url);
 
-      final Map<String, String> payload = {
-        "image_base64": base64Image,
-        "mime_type": mimeType
-      };
+      // 📄 Inyección de campos de texto requeridos por el controlador de Express
+      request.fields['empresa_id'] = empresaId;
+      request.fields['tipoFormato'] = tipoFormato; // ⚡ Sincroniza dinámicamente si es 606 o simple
+      request.fields['creado_por'] = creadoPor;
 
-      final response = await http.post(
-        Uri.parse(AppConstants.apiEndpoint),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
+      // 📸 Lectura de bytes binarios (100% compatible con Web, Netlify, Android e iOS)
+      final bytesImagen = await imagen.readAsBytes();
+
+      String mimeType = 'image/jpeg'; // Por defecto
+      final String nombreMinuscula = imagen.name.toLowerCase();
+
+      if (nombreMinuscula.endsWith('.png')) {
+        mimeType = 'image/png';
+      } else if (nombreMinuscula.endsWith('.webp')) {
+        mimeType = 'image/webp';
+      }
+
+      final multipartFile = http.MultipartFile.fromBytes(
+        'imagen',
+        bytesImagen,
+        filename: imagen.name,
+        contentType: MediaType.parse(mimeType),
       );
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+      request.files.add(multipartFile);
+
+      // Despachamos la petición por la red
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print("✅ Comprobante auditado e indexado de forma nativa por el backend.");
+        return true;
       } else {
-        return {
-          "success": false,
-          "error": "Error en el servidor de Google. Código: ${response.statusCode}"
-        };
+        print("❌ Fallo en respuesta del backend. Código: ${response.statusCode} - Body: ${response.body}");
+        return false;
       }
     } catch (e) {
-      return {
-        "success": false,
-        "error": "No se pudo conectar con el backend: $e"
-      };
+      print("💥 Error crítico de conectividad en ApiService POST: $e");
+      return false;
     }
   }
 }

@@ -1,4 +1,5 @@
 class AppConstants {
-  // Reemplaza con la URL /exec real de tu última implementación web activa de Google
-  static const String apiEndpoint = "https://script.google.com/macros/s/AKfycbzZ83L_h8RcdvGrs1-BxdBQ95P3oYEPmYYYQr6ynIJU0NRaPpysk-0Qjmz4Ws_b4cwpLA/exec";
+  // URL de producción real de tu backend independiente en Render
+  static const String apiBaseUrl = "https://autoncf-backend.onrender.com";
+  static const String procesarFacturaEndpoint = "$apiBaseUrl/api/procesar-factura";
 }
