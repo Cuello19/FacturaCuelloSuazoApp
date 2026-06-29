@@ -8,7 +8,7 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
-      - SUPABASE_URL=https://eftbmrgoniwytqhcpgdf.supabase.co
-      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmdGJtcmdvbml3eXRxaGNwZ2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzE4OTUsImV4cCI6MjA5Njg0Nzg5NX0.aRkeTkA9cfrOj4SgOLYb8DcZ7iU9LWlWpjp-07ymoTs
-      - GEMINI_API_KEY=AIzaSyBFIlZMid-K0xoxsQmTcrl1TjAXmuWhI7U
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     restart: always
