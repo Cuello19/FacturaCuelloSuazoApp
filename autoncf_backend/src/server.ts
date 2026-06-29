@@ -108,7 +108,7 @@ const swaggerDocument = {
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// 🚀 Endpoint Principal Refactorizado Multi-Formato
+// 🚀 Endpoint Principal Refactorizado Multi-Formato con Carga de Imágenes
 app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const { empresa_id, creado_por, tipoFormato } = req.body;
@@ -126,6 +126,29 @@ app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.R
       res.status(400).json({ error: "Variables de entorno corporativas faltantes." });
       return;
     }
+
+    // 📦 STEP 1: Subir la imagen recibida en memoria directamente a tu bucket público 'facturas'
+    const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}_factura.jpg`;
+    
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from('facturas')
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype || 'image/jpeg',
+        upsert: true
+      });
+
+    if (storageError) {
+      console.error("❌ Error subiendo imagen física al Storage de Supabase:", storageError);
+      res.status(500).json({ error: "Fallo crítico al resguardar la imagen del comprobante." });
+      return;
+    }
+
+    // 🔗 STEP 2: Extraer la URL pública permanente del asset digitalizado
+    const { data: publicUrlData } = supabase.storage
+      .from('facturas')
+      .getPublicUrl(fileName);
+
+    const publicFileUrl = publicUrlData.publicUrl;
 
     const imagenDataPart = {
       inlineData: {
@@ -181,7 +204,7 @@ app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.R
 
     const datosFiscales = JSON.parse(jsonText);
 
-    // 🚀 Inserción Nativa en Supabase mapeando cada campo exacto a tus columnas
+    // 🚀 STEP 3: Inserción Nativa en Supabase incluyendo la columna file_url
     const { data: nuevaFactura, error: supabaseError } = await supabase
       .from('facturas')
       .insert({
@@ -212,7 +235,8 @@ app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.R
         monto_ley: Number(datosFiscales.monto_ley) || 0.0,
         forma_pago: datosFiscales.forma_pago || "03 - TARJETA CRÉDITO/DÉBITO",
         estatus: "VÁLIDO",
-        creado_por: creado_por
+        creado_por: creado_por,
+        file_url: publicFileUrl // 🚀 Guardado nítido del link directo de Supabase Storage
       })
       .select()
       .single();
@@ -225,7 +249,7 @@ app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.R
 
     res.status(201).json({
       success: true,
-      mensaje: `Factura en formato ${formatoActual.toUpperCase()} auditada e indexada con éxito.`,
+      mensaje: `Factura en formato ${formatoActual.toUpperCase()} auditada, resguardada en Storage e indexada con éxito.`,
       factura: nuevaFactura
     });
 

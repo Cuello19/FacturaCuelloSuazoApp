@@ -10,7 +10,7 @@ class FacturaModel {
   final String documentoModificado;
   final String fecha;
   final String fechaPago;
-  final double montoServicios; // 🚀 CORREGIDO: De montoServices a montoServicios
+  final double montoServicios;
   final double montoBienes;
   final double montoTotal;
   final double itbisTotal;
@@ -28,6 +28,7 @@ class FacturaModel {
   final String formaPago;
   final String estatus;
   final String creadoPor;
+  final String fileUrl; // 🚀 Cambiado de getter a propiedad final real
 
   FacturaModel({
     required this.id,
@@ -41,7 +42,7 @@ class FacturaModel {
     required this.documentoModificado,
     required this.fecha,
     required this.fechaPago,
-    required this.montoServicios, // 🚀 CORREGIDO
+    required this.montoServicios,
     required this.montoBienes,
     required this.montoTotal,
     required this.itbisTotal,
@@ -59,10 +60,10 @@ class FacturaModel {
     required this.formaPago,
     required this.estatus,
     required this.creadoPor,
+    required this.fileUrl, // 🚀 Requerido en el constructor
   });
 
-  // 💡 GETTERS DE COMPATIBILIDAD EXTERNA PARA RESPALDAR FACTURA_DETAIL_SCREEN
-  String get fileUrl => '';
+  // 💡 Conservamos los getters dinámicos que calculan datos para las pantallas viejas
   String get dia => fecha.length >= 8 ? fecha.substring(6, 8) : '01';
   double get subtotal => montoTotal - itbisTotal;
 
@@ -79,7 +80,7 @@ class FacturaModel {
       documentoModificado: json['documento_modificado']?.toString() ?? '',
       fecha: json['fecha']?.toString() ?? '',
       fechaPago: json['fecha_pago']?.toString() ?? '',
-      montoServicios: (json['monto_servicios'] as num?)?.toDouble() ?? 0.0, // 🚀 CORREGIDO
+      montoServicios: (json['monto_servicios'] as num?)?.toDouble() ?? 0.0,
       montoBienes: (json['monto_bienes'] as num?)?.toDouble() ?? 0.0,
       montoTotal: (json['monto_total'] as num?)?.toDouble() ?? 0.0,
       itbisTotal: (json['itbis_total'] as num?)?.toDouble() ?? 0.0,
@@ -97,6 +98,7 @@ class FacturaModel {
       formaPago: json['forma_pago']?.toString() ?? '03 - TARJETA CRÉDITO/DÉBITO',
       estatus: json['estatus']?.toString() ?? 'VÁLIDO',
       creadoPor: json['creado_por']?.toString() ?? 'Sistema',
+      fileUrl: json['file_url']?.toString() ?? '', // 🚀 Extrae el link real enviado de Supabase
     );
   }
 }

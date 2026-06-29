@@ -157,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// 🔍 Modal Bottom Sheet optimizado para Modelos Tipados de AutoNCF
+  /// 🔍 Modal Bottom Sheet optimizado para Modelos Tipados de AutoNCF con imagen adjunta
   void _mostrarDetalleFacturaCompleto(BuildContext context, FacturaModel factura) {
     final bool esSimple = factura.tipoFormato == 'simple' || factura.tipoFormato == 'auditoria_simple';
 
@@ -212,6 +212,65 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildFilaDetalle("Forma de Pago:", factura.formaPago),
                         _buildFilaDetalle("Estatus:", factura.estatus),
                         _buildFilaDetalle("Creado por:", factura.creadoPor),
+
+                        const Divider(height: 30),
+
+                        // 📸 RENDEREADO DE LA IMAGEN DIGITALIZADA DESDE EL STORAGE
+                        if (factura.fileUrl.isNotEmpty) ...[
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              "📷 Comprobante Digitalizado:",
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF01579B)),
+                            ),
+                          ),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              factura.fileUrl,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  height: 200,
+                                  color: Colors.grey[100],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.broken_image, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Text("No se pudo cargar la imagen del comprobante.", style: TextStyle(color: Colors.red, fontSize: 12)),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ] else ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(color: Colors.amber[50], borderRadius: BorderRadius.circular(8)),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                                SizedBox(width: 8),
+                                Text("Esta factura no cuenta con respaldo fotográfico.", style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -235,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text(
               valor?.toString() ?? 'N/A',
               style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-              textAlign: TextAlign.right, // 🚀 FIJADO TOTALMENTE CONTRA ERRORES DE COMPILACIÓN
+              textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -344,7 +403,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          // 📊 Botón Flotante de exportación unificado e intuitivo
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _exportarExcelFiscal,
             backgroundColor: const Color(0xFF01579B),
@@ -364,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return RefreshIndicator(
       onRefresh: _onRefresh,
       child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 80, top: 10), // Espacio inferior para que el FAB no tape el último elemento
+        padding: const EdgeInsets.only(bottom: 80, top: 10),
         itemCount: lista.length,
         itemBuilder: (context, index) {
           final factura = lista[index];
@@ -373,9 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: ListTile(
-              // 🔍 Abre el modal expandible dinámico al dar un toque
               onTap: () => _mostrarDetalleFacturaCompleto(context, factura),
-              // Permite navegación extendida si dejas presionado el elemento
               onLongPress: () async {
                 final resultado = await Navigator.push(
                     context,
