@@ -396,10 +396,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const Center(child: Text('No hay facturas registradas.', style: TextStyle(color: Colors.grey)));
               }
 
-              _listaFacturasOriginales = snapshot.data!;
+              _listaFacturasOriginales = List<FacturaModel>.from(snapshot.data!);
 
-              final facturas606 = _listaFacturasOriginales.where((f) => f.tipoFormato.contains('606')).toList();
-              final facturasSimples = _listaFacturasOriginales.where((f) => f.tipoFormato.contains('simple')).toList();
+// 🚀 FILTROS ULTRA FLEXIBLES (Evitan que mayúsculas o espacios oculten la tarjeta)
+              final facturas606 = _listaFacturasOriginales.where((f) =>
+                  f.tipoFormato.toString().toLowerCase().contains('606')
+              ).toList();
+
+              final facturasSimples = _listaFacturasOriginales.where((f) =>
+                  f.tipoFormato.toString().toLowerCase().contains('simple')
+              ).toList();
 
               return TabBarView(
                 children: [
