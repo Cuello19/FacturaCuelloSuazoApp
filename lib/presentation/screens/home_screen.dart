@@ -117,11 +117,11 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // 🚀 SOLUCIÓN AL ERROR: Forzamos la mutabilidad real duplicando la lista
-      final listaMutableParaOperar = List<FacturaModel>.from(_listaFacturasOriginales);
+      // 🚀 SOLUCIÓN DEFINITIVA PARA WEB: Creamos una lista nativa pura de mapas sin usar .map() iterable
+      final List<Map<String, dynamic>> datosMutables = [];
 
-      final datosMutables = listaMutableParaOperar.map((f) {
-        return {
+      for (final f in _listaFacturasOriginales) {
+        datosMutables.add({
           'rnc': f.rnc,
           'tipo_id': f.tipoId,
           'nombre_empresa': f.nombreEmpresa,
@@ -149,8 +149,8 @@ class _HomeScreenState extends State<HomeScreen> {
           'estatus': f.estatus,
           'creado_por': f.creadoPor,
           'tipo_formato': f.tipoFormato
-        };
-      }).toList();
+        });
+      }
 
       // Invocación externa limpia
       // _generarReporteExcelFiscal(datosMutables);
@@ -165,7 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// 🔍 Modal Bottom Sheet optimizado para Modelos Tipados de AutoNCF con imagen adjunta
   void _mostrarDetalleFacturaCompleto(BuildContext context, FacturaModel factura) {
-    final bool esSimple = factura.tipoFormato == 'simple' || factura.tipoFormato == 'auditoria_simple';
+    final String fmt = factura.tipoFormato.toString().toLowerCase().trim();
+    final bool esSimple = fmt.contains('simple');
 
     showModalBottomSheet(
       context: context,
@@ -293,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: Main====MainAxisAlignment.spaceBetween,
         children: [
           Text(titulo, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54)),
           Flexible(
@@ -323,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
             title: _isLoadingEmpresas
                 ? const Text("Cargando Empresas...", style: TextStyle(fontSize: 14))
                 : _empresasAprobadas.isEmpty
-                ? Text(_tituloHeader, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))
+                ? Text(_tituloHeader, style: const TextStyle(fontSize: 14, fontStyle: FontStyle.normal))
                 : DropdownButtonHideUnderline(
               child: DropdownButton<Map<String, dynamic>>(
                 value: _empresaSeleccionada,
@@ -396,16 +397,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const Center(child: Text('No hay facturas registradas.', style: TextStyle(color: Colors.grey)));
               }
 
+              // 🚀 CLONACIÓN TOTAL: Rompemos la inmutabilidad de la red desde el origen
               _listaFacturasOriginales = List<FacturaModel>.from(snapshot.data!);
 
-// 🚀 FILTROS ULTRA FLEXIBLES (Evitan que mayúsculas o espacios oculten la tarjeta)
-              final facturas606 = _listaFacturasOriginales.where((f) =>
-                  f.tipoFormato.toString().toLowerCase().contains('606')
-              ).toList();
+              // 🚀 FILTROS DE CONTENIDO TOLERANTES: Limpian espacios y evitan omisiones en la UI
+              final facturas606 = _listaFacturasOriginales.where((f) {
+                final fmt = f.tipoFormato.toString().toLowerCase().trim();
+                return fmt.contains('606');
+              }).toList();
 
-              final facturasSimples = _listaFacturasOriginales.where((f) =>
-                  f.tipoFormato.toString().toLowerCase().contains('simple')
-              ).toList();
+              final facturasSimples = _listaFacturasOriginales.where((f) {
+                final fmt = f.tipoFormato.toString().toLowerCase().trim();
+                return fmt.contains('simple');
+              }).toList();
 
               return TabBarView(
                 children: [
@@ -438,7 +442,10 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: lista.length,
         itemBuilder: (context, index) {
           final factura = lista[index];
-          final bool es606 = factura.tipoFormato == '606';
+
+          // 🚀 SECCIÓN NORMALIZADA: Evitamos usar comparaciones estrictas == sobre strings mutados
+          final String fmt = factura.tipoFormato.toString().toLowerCase().trim();
+          final bool es606 = fmt.contains('606');
 
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
