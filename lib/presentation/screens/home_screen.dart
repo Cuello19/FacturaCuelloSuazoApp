@@ -75,7 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
           if (_empresasAprobadas.isNotEmpty) {
             _empresaSeleccionada = _empresasAprobadas.first;
-            _tituloHeader = "${_empresaSeleccionada!['nombre']}";
+            // 🚀 SALVAGUARDA: Usamos '??' en vez de el operador '!' para evitar colapsos
+            _tituloHeader = _empresaSeleccionada?['nombre']?.toString() ?? "Historial Fiscal";
+          } else {
+            _tituloHeader = "Sin Empresas";
           }
           _isLoadingEmpresas = false;
         });
@@ -114,7 +117,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      final datosMutables = _listaFacturasOriginales.map((f) {
+      // 🚀 SOLUCIÓN AL ERROR: Forzamos la mutabilidad real duplicando la lista
+      final listaMutableParaOperar = List<FacturaModel>.from(_listaFacturasOriginales);
+
+      final datosMutables = listaMutableParaOperar.map((f) {
         return {
           'rnc': f.rnc,
           'tipo_id': f.tipoId,
@@ -146,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
         };
       }).toList();
 
-      // NOTA: Aquí invocas tu función externa pasándole la estructura mutable limpia
+      // Invocación externa limpia
       // _generarReporteExcelFiscal(datosMutables);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -392,8 +398,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
               _listaFacturasOriginales = snapshot.data!;
 
-              final facturas606 = _listaFacturasOriginales.where((f) => f.tipoFormato == '606').toList();
-              final facturasSimples = _listaFacturasOriginales.where((f) => f.tipoFormato == 'auditoria_simple' || f.tipoFormato == 'simple').toList();
+              final facturas606 = _listaFacturasOriginales.where((f) => f.tipoFormato.contains('606')).toList();
+              final facturasSimples = _listaFacturasOriginales.where((f) => f.tipoFormato.contains('simple')).toList();
 
               return TabBarView(
                 children: [

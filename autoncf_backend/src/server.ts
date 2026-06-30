@@ -27,34 +27,34 @@ const supabase = createClient(
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// 📝 ESQUEMA FISCAL DINÁMICO COMPLETAMENTE PLANO (Mapeo 606 / Simple)
+// 📝 ESQUEMA FISCAL DINÁMICO COMPLETAMENTE PLANO (Mapeo 606 / Simple oficial DGII)
 const esquemaFiscalDominicano: Schema = {
   type: Type.OBJECT,
   properties: {
     rnc: { type: Type.STRING, description: "RNC o Cédula del suplidor/emisor de la factura. Solo números, sin guiones." },
-    tipo_id: { type: Type.STRING, description: "Pon '1' si identificas un RNC comercial o '2' si es Cédula." },
+    tipo_id: { type: Type.STRING, description: "Tipo de Identificación. Retorna estrictamente: '1' para RNC comercial (9 dígitos) o '2' para Cédula física (11 dígitos)." },
     nombre_empresa: { type: Type.STRING, description: "Nombre comercial o razón social del emisor de la factura." },
-    tipo_gasto: { type: Type.STRING, description: "Formato catálogo oficial (ej: '02 - GASTOS POR TRABAJOS, SUMINISTROS Y SERVICIOS')." },
+    tipo_gasto: { type: Type.STRING, description: "Clasificación de costos y gastos del 606. Retorna estrictamente uno de los códigos de catálogo: '01 - GASTOS DE PERSONAL', '02 - GASTOS POR TRABAJOS, SUMINISTROS Y SERVICIOS', '03 - ARRENDAMIENTOS', '04 - GASTOS DE ACTIVOS FIJOS', '05 - GASTOS DE REPRESENTACIÓN', '06 - OTRAS DEDUCCIONES ADMITIDAS', '07 - GASTOS FINANCIEROS', '08 - GASTOS EXTRAORDINARIOS', '09 - COMPRAS Y GASTOS QUE FORMARÁN PARTE DEL COSTO DE VENTA', '10 - ADQUISICIONES DE ACTIVOS', '11 - GASTOS DE SEGUROS'." },
     ncf: { type: Type.STRING, description: "Número de Comprobante Fiscal completo (ej. B01..., E31...)." },
-    documento_modificado: { type: Type.STRING, description: "NCF ó Documento Modificado si aplica, de lo contrario vacío." },
-    fecha: { type: Type.STRING, description: "Para 606 usa Periodo (YYYYMM). Para Simple usa Formato Completo (YYYY-MM-DD)." },
-    fecha_pago: { type: Type.STRING, description: "Para 606 usa Periodo (YYYYMM). Para Simple usa Formato Completo (YYYY-MM-DD)." },
-    monto_servicios: { type: Type.NUMBER, description: "Monto Facturado en Servicios (0.0 si es Bienes o formato simple)." },
-    monto_bienes: { type: Type.NUMBER, description: "Monto Facturado en Bienes (0.0 si es Servicios o formato simple)." },
+    documento_modificado: { type: Type.STRING, description: "NCF ó Documento Modificado afectado por Nota de Crédito/Débito si aplica, de lo contrario vacío." },
+    fecha: { type: Type.STRING, description: "Para formato 606 retorna estrictamente el periodo contable (YYYYMM). Para formato Simple retorna la fecha completa extendida (YYYY-MM-DD)." },
+    fecha_pago: { type: Type.STRING, description: "Para formato 606 retorna estrictamente el periodo contable (YYYYMM). Para formato Simple retorna la fecha completa extendida (YYYY-MM-DD)." },
+    monto_servicios: { type: Type.NUMBER, description: "Monto Facturado en Servicios. Excluye impuestos. 0.0 si es exclusivamente un Bien." },
+    monto_bienes: { type: Type.NUMBER, description: "Monto Facturado en Bienes. Excluye impuestos. 0.0 si es exclusivamente un Servicio." },
     monto_total: { type: Type.NUMBER, description: "Total Monto Facturado final bruto de la operación." },
     itbis_total: { type: Type.NUMBER, description: "Monto total del ITBIS liquidado." },
-    itbis_retenid: { type: Type.NUMBER, description: "Monto de ITBIS Retenido." },
+    itbis_retenid: { type: Type.NUMBER, description: "Monto de ITBIS Retenido en operaciones de servicios o entre entidades que aplique." },
     itbis_proporcional: { type: Type.NUMBER, description: "ITBIS sujeto a Proporcionalidad (Art. 349)." },
-    itbis_costo: { type: Type.NUMBER, description: "ITBIS llevado al Costo." },
-    itbis_adelantar: { type: Type.NUMBER, description: "ITBIS por Adelantar." },
+    itbis_costo: { type: Type.NUMBER, description: "ITBIS llevado directamente al Costo." },
+    itbis_adelantar: { type: Type.NUMBER, description: "ITBIS por Adelantar resultante." },
     itbis_percibido: { type: Type.NUMBER, description: "ITBIS percibido en compras." },
-    tipo_retencion_isr: { type: Type.STRING, description: "Tipo de Retención en ISR si aplica." },
-    retencion_renta: { type: Type.NUMBER, description: "Monto Retención Renta." },
+    tipo_retencion_isr: { type: Type.STRING, description: "Código de Tipo de Retención en ISR si aplica. Retorna estrictamente uno de estos valores: '01 - ALQUILERES', '02 - HONORARIOS POR SERVICIOS', '03 - OTRAS RENTAS', '04 - OTRAS RENTAS (RENTAS PRESUNTAS)', '05 - INTERESES PAGADOS A PERSONAS JURÍDICAS RESIDENTES', '06 - INTERESES PAGADOS A PERSONAS FÍSICAS RESIDENTES', '07 - RETENCIÓN POR PROVEEDORES DEL ESTADO', '08 - JUEGOS TELEFÓNICOS', '09 - RETENCIONES SUBSECTOR DE GANADERÍA DE CARNE BOVINA'. Si no hay retención, retorna un string vacío \"\"." },
+    retencion_renta: { type: Type.NUMBER, description: "Monto de Retención de Impuesto Sobre la Renta (ISR)." },
     isr_percibido: { type: Type.NUMBER, description: "ISR Percibido en compras." },
     isc: { type: Type.NUMBER, description: "Impuesto Selectivo al Consumo." },
-    otros_impuestos: { type: Type.NUMBER, description: "Otros Impuesto/Tasas." },
-    monto_ley: { type: Type.NUMBER, description: "Monto Propina Legal (10%)." },
-    forma_pago: { type: Type.STRING, description: "Método de pago oficial (ej: '03 - TARJETA CRÉDITO/DÉBITO', '01 - EFECTIVO')." }
+    otros_impuestos: { type: Type.NUMBER, description: "Otros Impuestos, Tasas o Cargos Especiales." },
+    monto_ley: { type: Type.NUMBER, description: "Monto por Propina Legal establecida por Ley (10%)." },
+    forma_pago: { type: Type.STRING, description: "Método de pago oficial. Retorna estrictamente uno de estos strings: '01 - EFECTIVO', '02 - CHEQUES/TRANSFERENCIAS/DEPÓSITO', '03 - TARJETA CRÉDITO/DÉBITO', '04 - COMPRA A CRÉDITO', '05 - PERMUTA', '06 - NOTAS DE CRÉDITO', '07 - MIXTO'." }
   },
   required: ["rnc", "tipo_id", "ncf", "monto_total", "itbis_total", "forma_pago"]
 };
@@ -157,34 +157,63 @@ app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.R
       }
     };
 
-    // 🧠 Prompt Híbrido heredado de tu App Script de Google
+    // 🧠 Prompt Híbrido heredado de tu App Script de Google con mapeos estrictos de la DGII
     let promptContext = `Actúa como un Auditor Fiscal experto homologado por la DGII de la República Dominicana.
     Analiza visualmente la imagen adjunta de la factura y extrae con exactitud los campos contables requeridos.
     
-    REGLAS GENERALES CRÍTICAS:
-    1. Extrae el RNC o Cédula del EMISOR/SUPLIDOR (quien vende y emite la factura). Ignora por completo el RNC de la empresa receptora.
-    2. tipo_id: Pon '1' si es un RNC comercial (9 dígitos) o '2' si es una Cédula (11 dígitos).
-    3. ncf: Código alfanumérico que debe iniciar obligatoriamente con 'B' o 'E'.
-    4. forma_pago: Elige el formato largo oficial correspondiente (ej: '01 - EFECTIVO', '02 - CHEQUES/TRANSFERENCIAS/DEPÓSITOS', '03 - TARJETA CRÉDITO/DÉBITO', '04 - A CRÉDITO').
+    REGLAS GENERALES CRÍTICAS DE MAPEO FISCAL:
+    1. Extrae el RNC o Cédula del EMISOR/SUPLIDOR (quien vende y emite la factura). Ignora por completo el RNC de la empresa receptora. Limpia guiones.
+    2. tipo_id: Analiza el ID del emisor. Pon estrictamente "1" si es un RNC comercial (9 dígitos) o "2" si identifica una Cédula física (11 dígitos).
+    3. ncf: Código alfanumérico completo. Debe iniciar obligatoriamente con la letra 'B' o 'E'.
+    4. forma_pago: Clasifica rigurosamente usando solo uno de los siguientes valores de texto plano:
+       - "01 - EFECTIVO"
+       - "02 - CHEQUES/TRANSFERENCIAS/DEPÓSITO"
+       - "03 - TARJETA CRÉDITO/DÉBITO"
+       - "04 - COMPRA A CRÉDITO"
+       - "05 - PERMUTA"
+       - "06 - NOTAS DE CRÉDITO"
+       - "07 - MIXTO"
     `;
 
     if (formatoActual === 'simple') {
       promptContext += `
       ESTÁS PROCESANDO FORMATO: AUDITORÍA SIMPLE
-      Extrae los siguientes 12 campos obligatorios:
-      - nombre_empresa: Razón social o nombre comercial del emisor.
-      - fecha y fecha_pago: Formato de texto estricto ISO YYYY-MM-DD.
-      - monto_total: Total facturado bruto final de la operación.
-      - itbis_total: ITBIS facturado líquido.
-      Setea en 0.0 o vacíos todos los demás campos no pertenecientes a la auditoría simple.`;
+      Extrae los siguientes campos obligatorios de forma libre y natural desde el ticket:
+      - nombre_empresa: Razón social o nombre comercial del emisor/suplidor.
+      - fecha y fecha_pago: Extrae la fecha de emisión completa. Retorna en formato de texto estándar ISO extendido: "YYYY-MM-DD" (ej: "2026-06-30").
+      - monto_total: Sumatoria final bruta cobrada.
+      - itbis_total: ITBIS liquidado en la operación.
+      Setea en 0.0 o strings vacíos "" todos los demás campos analíticos del 606.`;
     } else {
       promptContext += `
-      ESTÁS PROCESANDO FORMATO: REPORTE 606 (DGII)
-      Extrae rigurosamente los 28 campos fiscales:
-      - tipo_gasto: Clasifica según catálogo oficial de la DGII (ej: '01 - GASTOS DE PERSONAL', '02 - GASTOS POR TRABAJOS, SUMINISTROS Y SERVICIOS', '03 - ARRENDAMIENTOS').
-      - fecha y fecha_pago: Formato de periodo de texto YYYYMM (Año y Mes de emisión).
-      - Desglosa matemáticamente: monto_servicios (Monto facturado en servicios) y monto_bienes (Monto facturado en bienes) de forma tal que sumados coincidan exactamente con monto_total.
-      - Extrae detalladamente si existen: itbis_retenid, itbis_proporcional, itbis_costo, itbis_adelantar, itbis_percibido, tipo_retencion_isr, retencion_renta, isr_percibido, isc, otros_impuestos, monto_ley.`;
+      ESTÁS PROCESANDO FORMATO: REPORTE 606 (DGII - COMPRAS DE BIENES Y SERVICIOS)
+      Extrae rigurosamente los campos fiscales adaptados al layout de remisión de costos y gastos:
+      - tipo_gasto: Clasifica el propósito de la compra seleccionando estrictamente uno de estos strings del catálogo de la DGII:
+        "01 - GASTOS DE PERSONAL"
+        "02 - GASTOS POR TRABAJOS, SUMINISTROS Y SERVICIOS"
+        "03 - ARRENDAMIENTOS"
+        "04 - GASTOS DE ACTIVOS FIJOS"
+        "05 - GASTOS DE REPRESENTACIÓN"
+        "06 - OTRAS DEDUCCIONES ADMITIDAS"
+        "07 - GASTOS FINANCIEROS"
+        "08 - GASTOS EXTRAORDINARIOS"
+        "09 - COMPRAS Y GASTOS QUE FORMARÁN PARTE DEL COSTO DE VENTA"
+        "10 - ADQUISICIONES DE ACTIVOS"
+        "11 - GASTOS DE SEGUROS"
+      - fecha y fecha_pago: Retorna estrictamente la fecha en formato de Período Contable DGII de 6 dígitos: "YYYYMM" (ej: Mayo de 2026 es "202605").
+      - Desglose Contable: Divide el subtotal neto entre monto_servicios (Monto facturado en servicios) o monto_bienes (Monto facturado en bienes). La sumatoria de ambos campos sin impuestos debe corresponder de forma matemática al subtotal bruto.
+      - tipo_retencion_isr: Si se identifica una retención de renta, selecciona únicamente uno de los siguientes códigos del catálogo oficial:
+        "01 - ALQUILERES"
+        "02 - HONORARIOS POR SERVICIOS"
+        "03 - OTRAS RENTAS"
+        "04 - OTRAS RENTAS (RENTAS PRESUNTAS)"
+        "05 - INTERESES PAGADOS A PERSONAS JURÍDICAS RESIDENTES"
+        "06 - INTERESES PAGADOS A PERSONAS FÍSICAS RESIDENTES"
+        "07 - RETENCIÓN POR PROVEEDORES DEL ESTADO"
+        "08 - JUEGOS TELEFÓNICOS"
+        "09 - RETENCIONES SUBSECTOR DE GANADERÍA DE CARNE BOVINA"
+        Si no se aplica retención de renta en el comprobante, devuelve obligatoriamente un string vacío "".
+      - Desglosa con precisión los valores de: itbis_retenid, itbis_proporcional, itbis_costo, itbis_adelantar, itbis_percibido, retencion_renta, isr_percibido, isc, otros_impuestos, monto_ley.`;
     }
 
     const response = await ai.models.generateContent({
@@ -204,14 +233,14 @@ app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.R
 
     const datosFiscales = JSON.parse(jsonText);
 
-    // 🚀 STEP 3: Inserción Nativa en Supabase incluyendo la columna file_url
+    // 🚀 STEP 3: Inserción Nativa en Supabase incluyendo las columnas estandarizadas
     const { data: nuevaFactura, error: supabaseError } = await supabase
       .from('facturas')
       .insert({
         empresa_id: empresa_id,
         tipo_formato: formatoActual,
         rnc: datosFiscales.rnc ? datosFiscales.rnc.replace(/[^0-9]/g, "") : "000000000",
-        tipo_id: datosFiscales.tipo_id || "1",
+        tipo_id: Number(datosFiscales.tipo_id) || 1, // Se guarda numérico en PostgreSQL (1 o 2)
         nombre_empresa: formatoActual === 'simple' ? (datosFiscales.nombre_empresa || "Desconocido") : null,
         tipo_gasto: formatoActual === '606' ? (datosFiscales.tipo_gasto || "02 - GASTOS POR TRABAJOS, SUMINISTROS Y SERVICIOS") : null,
         ncf: datosFiscales.ncf || "N/A",
@@ -236,7 +265,7 @@ app.post('/api/procesar-factura', upload.single('imagen'), async (req: express.R
         forma_pago: datosFiscales.forma_pago || "03 - TARJETA CRÉDITO/DÉBITO",
         estatus: "VÁLIDO",
         creado_por: creado_por,
-        file_url: publicFileUrl // 🚀 Guardado nítido del link directo de Supabase Storage
+        file_url: publicFileUrl // 🚀 Link directo al Supabase Storage público resguardado
       })
       .select()
       .single();

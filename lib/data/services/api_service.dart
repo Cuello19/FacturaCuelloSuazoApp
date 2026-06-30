@@ -13,13 +13,9 @@ class ApiService {
 
   /// 🌍 ENRUTADOR GLOBAL PÚBLICO
   /// Con esto, no importa la IP, ni la red, ni el país. Todos los celulares apuntan a Render en producción.
+  /// 🌍 ENRUTADOR GLOBAL PÚBLICO UNIFICADO
   static String get _backendUrl {
-    if (kIsWeb) {
-      // En la web de desarrollo apunta local, pero para tus usuarios finales de la app...
-      return 'http://localhost:3000/api/procesar-factura';
-    }
-
-    // 🚀 UNIFICADO PARA CELULARES: Apunta directo a tu URL pública en la nube de Render
+    // 🚀 APUNTA SIEMPRE A RENDER PARA DETENER LOS REBOTES LOCALES EN WEB
     return 'https://autoncf-backend.onrender.com/api/procesar-factura';
   }
 
